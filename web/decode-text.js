@@ -15,6 +15,14 @@
 (function () {
   const CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789*?!/#+<>=-_$%&¡¿";
 
+  const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", DIGITS = "0123456789";
+  function glyphPool(ch, o) {
+    if (o.charset) return o.charset;
+    if (/[0-9]/.test(ch)) return DIGITS;
+    if (/\p{L}/u.test(ch)) return LETTERS;
+    return "";
+  }
+
   function hash32(a, b, c) {
     let h = (Math.imul(a, 374761393) + Math.imul(b, 668265263) + Math.imul(c, 2246822519)) >>> 0;
     h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
@@ -55,8 +63,8 @@
         if (t >= r) out += ch;
         else if (t < g) out += " ";
         else {
-          const tick = Math.floor(t / o.tick);
-          out += o.charset[Math.floor(rnd(o.seed + tick, li * 97 + i, 3) * o.charset.length)];
+          const tick = Math.floor(t / o.tick), cs = glyphPool(ch, o);
+          out += cs ? cs[Math.floor(rnd(o.seed + tick, li * 97 + i, 3) * cs.length)] : ch;
         }
       }
       return out;
@@ -97,7 +105,7 @@
     }
     get _o() {
       const n = (k, d) => (this.hasAttribute(k) ? parseFloat(this.getAttribute(k)) : d);
-      return { decode: n("decode", 0.9), hold: n("hold", 1.3), exit: n("exit", 0), delay: n("delay", 0), order: this.getAttribute("order") || "random", tick: n("tick", 1 / 24), seed: n("seed", 7), charset: CHARSET };
+      return { decode: n("decode", 0.9), hold: n("hold", 1.3), exit: n("exit", 0), delay: n("delay", 0), order: this.getAttribute("order") || "random", tick: n("tick", 1 / 24), seed: n("seed", 7), charset: this.getAttribute("charset") || null };
     }
     get _texts() {
       return (this.getAttribute("texts") || this.textContent || "").split("|").map((s) => wrapBalanced(s.replace(/\\n/g, "\n").trim(), this.hasAttribute("wrap") ? parseInt(this.getAttribute("wrap"), 10) : 12)).filter(Boolean);

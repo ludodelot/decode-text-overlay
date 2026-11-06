@@ -30,7 +30,7 @@ SCENARIOS = [
 
 def opts(sc):
     return dict(decode=sc["decode"], hold=sc["hold"], exit=sc["exit"], delay=sc.get("delay", 0.0), order=sc["order"],
-                tick=1 / 24, seed=sc["seed"], charset=d.CHARSET)
+                tick=1 / 24, seed=sc["seed"], charset=sc.get("charset"))
 
 
 class Core(unittest.TestCase):

@@ -30,7 +30,20 @@ try:
 except ImportError:
     sys.exit("Pillow missing. Run: python3 -m venv .venv && .venv/bin/pip install pillow")
 
-CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789*?!/#+<>=-_$%&¡¿"
+CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789*?!/#+<>=-_$%&¡¿"  # custom pool for --charset
+LETTERS, DIGITS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "0123456789"
+
+
+def glyph_pool(ch, o):
+    """Scramble glyphs matching the target character: letters scramble as letters, digits as digits.
+    Punctuation is not scrambled (returns ''), which keeps the line calm. A custom o['charset'] overrides this."""
+    if o.get("charset"):
+        return o["charset"]
+    if ch.isdigit():
+        return DIGITS
+    if ch.isalpha():
+        return LETTERS
+    return ""
 SKILL_DIR = Path(__file__).resolve().parents[1]
 FONT_NAME = "SpaceMono-Regular.ttf"
 FONT_CANDIDATES = [
@@ -121,9 +134,9 @@ def frame_text(prev, target, t, o):
             elif t < g:
                 chars.append(" ")
             else:
-                cs = o["charset"]
+                cs = glyph_pool(ch, o)
                 tick = int(t / o["tick"])
-                chars.append(cs[int(rnd(o["seed"] + tick, li * 97 + i, 3) * len(cs))])
+                chars.append(cs[int(rnd(o["seed"] + tick, li * 97 + i, 3) * len(cs))] if cs else ch)
         out.append("".join(chars))
     return "\n".join(out)
 
@@ -323,7 +336,9 @@ def make_renderer(args, W, H):
                     gx = x + (adv[ci] - track - font.getlength(ch)) / 2 if slot else x
                     if sd:
                         sd.text((gx, y), ch, font=font, fill=(0, 0, 0, int(255 * args.shadow)))
-                    d.text((gx, y), ch, font=font, fill=color + (int(255 * args.opacity),))
+                    resolved = ci < len(tlines[li] if li < len(tlines) else ln) and (tlines[li] if li < len(tlines) else ln)[ci] == ch
+                    op = args.opacity * (1.0 if resolved else args.scramble_opacity)
+                    d.text((gx, y), ch, font=font, fill=color + (int(255 * op),))
                 x += adv[ci]
         if shadow:
             shadow = shadow.filter(ImageFilter.GaussianBlur(size * 0.12))
@@ -419,7 +434,8 @@ def main():
     p.add_argument("--shadow", type=float, default=0.35, help="soft shadow strength 0-1 (helps legibility)")
     p.add_argument("--x", type=float, default=0.5, help="center x, 0-1")
     p.add_argument("--y", type=float, default=0.5, help="center y, 0-1")
-    p.add_argument("--charset", default=CHARSET)
+    p.add_argument("--charset", default=None, help="custom scramble glyphs for every character (default: letters scramble as letters, digits as digits)")
+    p.add_argument("--scramble-opacity", type=float, default=0.55, help="opacity of glyphs that have not resolved yet, relative to --opacity")
     p.add_argument("--svg-bg", help="solid background color for .svg output, e.g. '#1a1216' (default: transparent)")
     p.add_argument("--preset", choices=sorted(PRESETS), default="story", help="starting point for style options; explicit flags override it")
     pre, _ = p.parse_known_args()
@@ -521,15 +537,15 @@ def main():
     cmd += ["-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{W}x{H}", "-r", str(a.fps), "-i", "-"]
     if a.bg:
         fc = (f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={a.fps},setsar=1[b];"
-              f"[b][1:v]overlay=shortest=1,format=yuv420p[v]")
+              f"[b][1:v]overlay=shortest=1,scale=in_range=full:out_range=limited,format=yuv420p[v]")
         cmd += ["-filter_complex", fc, "-map", "[v]"]
         if bg_is_video:
             cmd += ["-map", "0:a?", "-c:a", "copy"]
         if ext == ".gif":
-            cmd[cmd.index("-filter_complex") + 1] = fc.replace("format=yuv420p[v]", "split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4[v]")
+            cmd[cmd.index("-filter_complex") + 1] = fc.replace("scale=in_range=full:out_range=limited,format=yuv420p[v]", "split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4[v]")
             cmd += ["-t", f"{dur:.3f}", "-loop", "0"]
         elif ext == ".mp4":
-            cmd += ["-t", f"{dur:.3f}", "-c:v", "libx264", "-crf", "16", "-preset", "medium", "-movflags", "+faststart"]
+            cmd += ["-t", f"{dur:.3f}", "-c:v", "libx264", "-crf", "15", "-preset", "slow", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv", "-movflags", "+faststart"]
         else:
             sys.exit("with --bg the output must be .mp4 or .gif")
     elif ext == ".mov":

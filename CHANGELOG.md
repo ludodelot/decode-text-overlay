@@ -1,6 +1,8 @@
 # Changelog
 
 ## 0.3.0
+- Scramble glyphs now match the target (letters scramble as letters, digits as digits, punctuation stays calm); unresolved glyphs are dimmer (`--scramble-opacity`), resolved ones fully bright. `--charset` still overrides. JS and Python stay identical (parity test).
+- Video output is tagged as limited-range BT.709 (plays correctly everywhere); `--width` is how to get a 1080-wide story from a large photo.
 - Proportional fonts: `--layout slot` (auto for non-monospace fonts) gives every character a slot sized to its final letter, so lines do not jitter while glyphs scramble. Bundled DM Sans (variable): `--font dm-sans --weight 800`.
 - `--scrim-color` for tinted gradients (e.g. `#070A10`).
 - Bundled DM Mono (Regular and Light, SIL OFL): `--font dm-mono` / `dm-mono-light` / `space-mono`, also per block (`font=dm-mono-light`).
