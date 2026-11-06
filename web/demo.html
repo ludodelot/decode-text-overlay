@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>decode-text demo</title>
+<style>
+  body{margin:0;background:#0f0b12;color:#cfc6d6;font:14px system-ui;padding:32px 16px}
+  h1{font:600 18px system-ui;text-align:center;margin:0 0 24px}
+  .row{display:flex;flex-wrap:wrap;gap:20px;justify-content:center}
+  figure{margin:0}
+  .card{position:relative;overflow:hidden;border-radius:14px}
+  .story{width:min(86vw,300px);aspect-ratio:9/16;background:linear-gradient(190deg,#2b1d33,#9a5a68 55%,#c98a88)}
+  .wide{width:min(92vw,520px);aspect-ratio:16/9;background:linear-gradient(120deg,#10202e,#4a7186 55%,#8fb0b8)}
+  .light{--dt-color:#111;--dt-shadow:none;width:min(92vw,520px);aspect-ratio:16/9;background:linear-gradient(120deg,#efe6da,#d8c7b0)}
+  small{display:block;text-align:center;margin-top:8px;opacity:.6}
+</style>
+<h1>&lt;decode-text&gt; live demo</h1>
+<div class="row">
+  <figure><div class="card story"><decode-text loop texts="MIDNIGHT SESSIONS|STUDIO ONE\nLIVE SET|OUT NOW"></decode-text></div><small>story 9:16</small></figure>
+  <figure><div class="card wide"><decode-text loop decode="1.2" hold="1" texts="GOLDEN HOUR|LISBON 2026"></decode-text></div><small>16:9, slower decode</small></figure>
+  <figure><div class="card light"><decode-text loop texts="DARK TEXT ON LIGHT|SET WITH CSS VARIABLES"></decode-text></div><small>--dt-color: #111</small></figure>
+</div>
+<script src="decode-text.js"></script>
