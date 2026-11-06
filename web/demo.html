@@ -2,22 +2,113 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>decode-text demo</title>
+<title>decode-text · live demo</title>
 <style>
-  body{margin:0;background:#0f0b12;color:#cfc6d6;font:14px system-ui;padding:32px 16px}
-  h1{font:600 18px system-ui;text-align:center;margin:0 0 24px}
-  .row{display:flex;flex-wrap:wrap;gap:20px;justify-content:center}
-  figure{margin:0}
-  .card{position:relative;overflow:hidden;border-radius:14px}
-  .story{width:min(86vw,300px);aspect-ratio:9/16;background:linear-gradient(190deg,#2b1d33,#9a5a68 55%,#c98a88)}
-  .wide{width:min(92vw,520px);aspect-ratio:16/9;background:linear-gradient(120deg,#10202e,#4a7186 55%,#8fb0b8)}
-  .light{--dt-color:#111;--dt-shadow:none;width:min(92vw,520px);aspect-ratio:16/9;background:linear-gradient(120deg,#efe6da,#d8c7b0)}
-  small{display:block;text-align:center;margin-top:8px;opacity:.6}
+  :root{--bg:#0f0b12;--panel:#1a131f;--line:#33283b;--text:#f4eae6;--muted:#8f8498;--rose:#e9aaa0}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding:32px 16px 64px}
+  h1{font:700 22px system-ui;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 28px}
+  .wrap{max-width:980px;margin:0 auto}
+  .grid{display:grid;grid-template-columns:minmax(260px,320px) 1fr;gap:28px;align-items:start}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .stage{position:relative;overflow:hidden;border-radius:18px;aspect-ratio:9/16;width:100%;border:1px solid var(--line);
+    background:#1b2440 url(mountains.jpg) center/cover}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .row{display:grid;grid-template-columns:110px 1fr 48px;gap:10px;align-items:center;margin:9px 0}
+  .row label{color:var(--muted)} .row output{text-align:right;font:12px ui-monospace,Menlo,monospace;color:var(--rose)}
+  .row.two{grid-template-columns:110px 1fr}
+  select,input[type=color]{width:100%;background:#120d16;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px}
+  input[type=range]{width:100%;accent-color:var(--rose)}
+  .btns{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+  button{background:var(--rose);color:#1a0f14;border:0;border-radius:9px;padding:9px 16px;font-weight:700;cursor:pointer}
+  button.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+  pre.code{margin:6px 0 0;background:#0b080e;border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto;
+    font:12.5px/1.5 ui-monospace,Menlo,Consolas,monospace;color:#d8cde0;white-space:pre-wrap;word-break:break-word}
+  .h{margin:18px 0 0;font-weight:700}
+  footer{color:var(--muted);margin-top:28px;font-size:13px}
+  a{color:var(--rose)}
 </style>
-<h1>&lt;decode-text&gt; live demo</h1>
-<div class="row">
-  <figure><div class="card story"><decode-text loop texts="MIDNIGHT SESSIONS|STUDIO ONE\nLIVE SET|OUT NOW"></decode-text></div><small>story 9:16</small></figure>
-  <figure><div class="card wide"><decode-text loop decode="1.2" hold="1" texts="GOLDEN HOUR|LISBON 2026"></decode-text></div><small>16:9, slower decode</small></figure>
-  <figure><div class="card light"><decode-text loop texts="DARK TEXT ON LIGHT|SET WITH CSS VARIABLES"></decode-text></div><small>--dt-color: #111</small></figure>
+<div class="wrap">
+  <h1>&lt;decode-text&gt; live demo</h1>
+  <p class="sub">The highest mountains on Earth: height, coordinates and countries. Change anything and copy the code.</p>
+  <div class="grid">
+    <div class="stage" id="stage"><decode-text id="dt" loop></decode-text></div>
+    <div>
+      <div class="panel">
+        <div class="row two"><label for="peak">Mountain</label><select id="peak"></select></div>
+        <div class="row two"><label for="preset">Preset</label><select id="preset"></select></div>
+        <div class="row two"><label for="order">Resolve order</label>
+          <select id="order"><option>random</option><option>center</option><option>ltr</option></select></div>
+        <div class="row"><label for="decode">Decode</label><input id="decode" type="range" min="0.4" max="2.5" step="0.1"><output></output></div>
+        <div class="row"><label for="hold">Hold</label><input id="hold" type="range" min="0.4" max="4" step="0.1"><output></output></div>
+        <div class="row"><label for="exit">Exit</label><input id="exit" type="range" min="0" max="1.5" step="0.1"><output></output></div>
+        <div class="row"><label for="size">Size</label><input id="size" type="range" min="2" max="9" step="0.1"><output></output></div>
+        <div class="row"><label for="tracking">Tracking</label><input id="tracking" type="range" min="0" max="0.6" step="0.01"><output></output></div>
+        <div class="row two"><label for="color">Color</label><input id="color" type="color"></div>
+        <div class="btns"><button id="replay">Replay</button><button class="ghost" id="copy">Copy HTML</button></div>
+      </div>
+      <div class="h">HTML</div><pre class="code" id="html"></pre>
+      <div class="h">Same thing from the CLI</div><pre class="code" id="cli"></pre>
+    </div>
+  </div>
+  <footer>Part of <a href="https://github.com/ludodelot/decode-text-overlay">decode-text-overlay</a>. Heights and coordinates are approximate summit values. The backdrop is generated procedurally.</footer>
 </div>
 <script src="decode-text.js"></script>
+<script>
+  const PEAKS = {
+    "Mount Everest": ["EVEREST\n8,849 M", "27.9881° N\n86.9250° E", "NEPAL · CHINA"],
+    "K2": ["K2\n8,611 M", "35.8825° N\n76.5133° E", "PAKISTAN · CHINA"],
+    "Kangchenjunga": ["KANGCHENJUNGA\n8,586 M", "27.7025° N\n88.1475° E", "NEPAL · INDIA"],
+    "Lhotse": ["LHOTSE\n8,516 M", "27.9617° N\n86.9331° E", "NEPAL · CHINA"],
+    "Makalu": ["MAKALU\n8,485 M", "27.8897° N\n87.0889° E", "NEPAL · CHINA"],
+  };
+  const PRESETS = {
+    story: {},
+    cinematic: { size: 4.2, tracking: 0.45, decode: 1.6, hold: 2.2, exit: 0.8, order: "center" },
+    minimal: { size: 3.4, tracking: 0.3, decode: 1.1, hold: 1.6, exit: 0.5 },
+    poster: { size: 8.2, tracking: 0.12, decode: 1.4, hold: 1.8 },
+    terminal: { size: 4.6, tracking: 0.02, color: "#7cffb2", order: "ltr", decode: 0.8, hold: 1.4 },
+    lowerthird: { size: 3.6, tracking: 0.2, order: "ltr", exit: 0.5, decode: 0.8, hold: 2.5 },
+  };
+  const BASE = { size: 4.4, tracking: 0.18, decode: 0.9, hold: 1.3, exit: 0, order: "random", color: "#ffffff" };
+  const $ = (id) => document.getElementById(id), dt = $("dt");
+  for (const k of Object.keys(PEAKS)) $("peak").add(new Option(k));
+  for (const k of Object.keys(PRESETS)) $("preset").add(new Option(k));
+  const sliders = ["decode", "hold", "exit", "size", "tracking"];
+
+  function setControls(v) {
+    for (const k of sliders) $(k).value = v[k];
+    $("order").value = v.order; $("color").value = v.color;
+  }
+  function apply() {
+    const v = { order: $("order").value, color: $("color").value };
+    for (const k of sliders) { v[k] = parseFloat($(k).value); $(k).nextElementSibling.textContent = v[k]; }
+    const texts = PEAKS[$("peak").value].join("|").replace(/\n/g, "\\n");
+    dt.setAttribute("texts", texts);
+    dt.setAttribute("decode", v.decode); dt.setAttribute("hold", v.hold);
+    dt.setAttribute("exit", v.exit); dt.setAttribute("order", v.order);
+    dt.style.setProperty("--dt-size", v.size + "cqw");
+    dt.style.setProperty("--dt-tracking", v.tracking + "em");
+    dt.style.setProperty("--dt-color", v.color);
+    dt.style.setProperty("--dt-shadow", v.color.toLowerCase() === "#ffffff" ? "0 0 .6em rgba(0,0,0,.45)" : "none");
+    $("html").textContent =
+`<div style="position:relative">
+  <img src="photo.jpg" alt="">
+  <decode-text loop order="${v.order}" decode="${v.decode}" hold="${v.hold}" exit="${v.exit}"
+    style="--dt-size:${v.size}cqw; --dt-tracking:${v.tracking}em; --dt-color:${v.color}"
+    texts="${texts}"></decode-text>
+</div>
+<script src="decode-text.js"><\/script>`;
+    const phrases = PEAKS[$("peak").value].map((p) => `-t "${p.replace(/\n/g, "\\n")}"`).join(" ");
+    $("cli").textContent =
+`decode_overlay.py ${phrases} \\
+  --bg photo.jpg --order ${v.order} --decode ${v.decode} --hold ${v.hold} --exit ${v.exit} \\
+  --size ${(v.size / 100).toFixed(3)} --tracking ${v.tracking} --color "${v.color}" --loop -o out.mp4`;
+  }
+  $("preset").onchange = () => { setControls({ ...BASE, ...PRESETS[$("preset").value] }); apply(); };
+  for (const id of ["peak", "order", "color", ...sliders]) $(id).addEventListener("input", apply);
+  $("replay").onclick = () => dt.restart();
+  $("copy").onclick = async () => { try { await navigator.clipboard.writeText($("html").textContent); $("copy").textContent = "Copied"; setTimeout(() => ($("copy").textContent = "Copy HTML"), 1200); } catch (e) {} };
+  setControls(BASE); apply();
+</script>

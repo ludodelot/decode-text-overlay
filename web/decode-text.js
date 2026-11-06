@@ -49,7 +49,8 @@
         const j = rnd(o.seed, li * 97 + i, 1);
         const d = c > 0 ? Math.abs(i - c) / c : 0;
         const g = grow * d * (0.85 + 0.30 * j);
-        let r = o.decode * (0.35 + 0.65 * rnd(o.seed, li * 97 + i, 2));
+        const u = o.order === "ltr" ? (n > 1 ? i / (n - 1) : 0) : o.order === "center" ? d : rnd(o.seed, li * 97 + i, 2);
+        let r = o.decode * (0.35 + 0.65 * u);
         r = Math.min(o.decode, Math.max(r, g + o.decode * 0.12));
         if (t >= r) out += ch;
         else if (t < g) out += " ";
@@ -62,19 +63,31 @@
     }).join("\n");
   }
 
+  // Pure timeline: which text is on screen t seconds after start. Mirrors text_at() in decode_overlay.py.
+  function textAt(texts, t, o, loop) {
+    const live = o.decode + o.hold, cycle = live + o.exit, total = cycle * texts.length;
+    if (loop) t %= total;
+    else if (o.exit > 0 ? t >= total : t >= total - o.hold) {
+      return { text: o.exit > 0 ? "" : texts[texts.length - 1], ended: true };
+    }
+    const k = Math.min(texts.length - 1, Math.floor(t / cycle)), local = t - k * cycle;
+    const text = local < live || o.exit <= 0
+      ? frameText("", texts[k], local, o)
+      : frameText("", texts[k], o.decode * (1 - (local - live) / o.exit), o);
+    return { text, ended: false };
+  }
+
   class DecodeText extends HTMLElement {
-    static get observedAttributes() { return ["texts", "decode", "hold", "tick", "seed", "loop", "paused"]; }
+    static get observedAttributes() { return ["texts", "decode", "hold", "exit", "order", "tick", "seed", "wrap", "loop", "paused"]; }
     constructor() {
       super();
       const r = this.attachShadow({ mode: "open" });
       r.innerHTML = `<style>
-        :host{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;
+        :host{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;container-type:inline-size}
+        pre{margin:0;white-space:pre;opacity:.95;text-align:center;line-height:1.15;text-transform:uppercase;
           font-family:var(--dt-font,"Space Mono","SF Mono",ui-monospace,Menlo,monospace);
-          font-size:var(--dt-size,clamp(12px,3.6cqw,40px));
-          letter-spacing:var(--dt-tracking,.18em);text-transform:uppercase;
-          color:var(--dt-color,#fff);text-align:center;line-height:1.15;
-          text-shadow:var(--dt-shadow,0 0 .6em rgba(0,0,0,.35));container-type:inline-size}
-        pre{margin:0;font:inherit;white-space:pre;opacity:.95;padding-left:.18em}
+          font-size:var(--dt-size,max(11px,3.6cqw));letter-spacing:var(--dt-tracking,.18em);padding-left:var(--dt-tracking,.18em);
+          color:var(--dt-color,#fff);text-shadow:var(--dt-shadow,0 0 .6em rgba(0,0,0,.35))}
       </style><pre part="text" aria-hidden="true"></pre><span part="sr" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)"></span>`;
       this._pre = r.querySelector("pre");
       this._sr = r.querySelector("[part=sr]");
@@ -82,7 +95,7 @@
     }
     get _o() {
       const n = (k, d) => (this.hasAttribute(k) ? parseFloat(this.getAttribute(k)) : d);
-      return { decode: n("decode", 0.9), hold: n("hold", 1.3), tick: n("tick", 1 / 24), seed: n("seed", 7), charset: CHARSET };
+      return { decode: n("decode", 0.9), hold: n("hold", 1.3), exit: n("exit", 0), order: this.getAttribute("order") || "random", tick: n("tick", 1 / 24), seed: n("seed", 7), charset: CHARSET };
     }
     get _texts() {
       return (this.getAttribute("texts") || this.textContent || "").split("|").map((s) => wrapBalanced(s.replace(/\\n/g, "\n").trim(), this.hasAttribute("wrap") ? parseInt(this.getAttribute("wrap"), 10) : 12)).filter(Boolean);
@@ -105,20 +118,17 @@
     _tick(now) {
       const o = this._o, texts = this._texts;
       if (!texts.length) return;
-      const cycle = o.decode + o.hold, total = cycle * texts.length;
       let t = (now - this._t0) / 1000;
       if (this.hasAttribute("paused")) { this._t0 = now - t * 1000; this._raf = requestAnimationFrame(this._tick); return; }
-      if (this.hasAttribute("loop")) t %= total;
-      else if (t >= total - o.hold) {
-        this._pre.textContent = texts[texts.length - 1];
+      const r = textAt(texts, t, o, this.hasAttribute("loop"));
+      this._pre.textContent = r.text;
+      if (r.ended) {
         if (!this._ended) { this._ended = true; this.dispatchEvent(new CustomEvent("decode-end")); }
         return;
       }
-      const k = Math.min(texts.length - 1, Math.floor(t / cycle));
-      this._pre.textContent = frameText(k ? texts[k - 1] : "", texts[k], t - k * cycle, o);
       this._raf = requestAnimationFrame(this._tick);
     }
   }
   if (!customElements.get("decode-text")) customElements.define("decode-text", DecodeText);
-  window.DecodeText = { frameText, wrapBalanced, CHARSET };
+  window.DecodeText = { frameText, textAt, wrapBalanced, CHARSET };
 })();

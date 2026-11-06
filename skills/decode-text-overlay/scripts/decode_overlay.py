@@ -32,7 +32,15 @@ except ImportError:
 
 CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789*?!/#+<>=-_$%&¡¿"
 SKILL_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_FONT = SKILL_DIR / "fonts" / "SpaceMono-Regular.ttf"  # bundled, so the skill folder is self-contained
+FONT_NAME = "SpaceMono-Regular.ttf"
+FONT_CANDIDATES = [
+    SKILL_DIR / "fonts" / FONT_NAME,                                   # skill folder is self-contained
+    Path(sys.prefix) / "share" / "decode-text-overlay" / "fonts" / FONT_NAME,  # pip install
+    Path("/System/Library/Fonts/Menlo.ttc"), Path("/Library/Fonts/Courier New.ttf"),
+    Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"),
+    Path("C:/Windows/Fonts/consola.ttf"),
+]
+DEFAULT_FONT = next((f for f in FONT_CANDIDATES if f.exists()), FONT_CANDIDATES[0])
 
 
 # ---------- animation core (kept identical to web/decode-text.js) ----------
@@ -81,7 +89,14 @@ def frame_text(prev, target, t, o):
             j = rnd(o["seed"], li * 97 + i, 1)
             d = abs(i - c) / c if c > 0 else 0.0
             g = grow * d * (0.85 + 0.30 * j)
-            r = o["decode"] * (0.35 + 0.65 * rnd(o["seed"], li * 97 + i, 2))
+            order = o.get("order", "random")
+            if order == "ltr":
+                u = i / (n - 1) if n > 1 else 0.0
+            elif order == "center":
+                u = d
+            else:
+                u = rnd(o["seed"], li * 97 + i, 2)
+            r = o["decode"] * (0.35 + 0.65 * u)
             r = min(o["decode"], max(r, g + o["decode"] * 0.12))
             if t >= r:
                 chars.append(ch)
@@ -100,19 +115,65 @@ def timeline(texts, o):
     segs, t, prev = [], 0.0, ""
     for tx in texts:
         segs.append((t, prev, tx))
-        t += o["decode"] + o["hold"]
+        t += o["decode"] + o["hold"] + o.get("exit", 0.0)
         prev = tx
     return segs, t
 
 
 def text_at(segs, total, t, o, loop):
+    ex_all = o.get("exit", 0.0)
     if loop:
         t = t % total
+    elif ex_all > 0 and t >= total:
+        return ""
     seg = segs[0]
     for s in segs:
         if t >= s[0]:
             seg = s
-    return frame_text(seg[1], seg[2], t - seg[0], o)
+    local = t - seg[0]
+    live = o["decode"] + o["hold"]
+    ex = o.get("exit", 0.0)
+    if local < live or ex <= 0:
+        return frame_text(seg[1], seg[2], local, o)
+    u = (local - live) / ex
+    if u >= 1:
+        return ""  # after the exit the layer is empty
+    # exit = the decode played backwards: text dissolves into glyphs and shrinks to the center
+    return frame_text(seg[1], seg[2], o["decode"] * (1 - u), o)
+
+
+PRESETS = {
+    "story": {},
+    "minimal": dict(size=0.028, tracking=0.30, opacity=0.85, shadow=0.20, decode=1.1, hold=1.6, exit=0.5),
+    "cinematic": dict(size=0.030, tracking=0.45, opacity=0.90, shadow=0.30, decode=1.6, hold=2.2, exit=0.8, order="center"),
+    "poster": dict(size=0.075, tracking=0.12, shadow=0.50, decode=1.4, hold=1.8),
+    "terminal": dict(size=0.040, tracking=0.02, color="#7CFFB2", shadow=0.0, order="ltr", decode=0.8, hold=1.4,
+                     charset="01#$%&*+=<>/\\|"),
+    "lowerthird": dict(size=0.030, tracking=0.20, y=0.86, order="ltr", exit=0.5, decode=0.8, hold=2.5),
+}
+
+
+def pick_auto_color(bg, is_video, W, H, args):
+    """Sample the background under the text box; dark text on bright areas, white otherwise."""
+    from PIL import ImageStat
+    import tempfile
+    path = str(bg)
+    tmp = None
+    if is_video:
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False).name
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "0.5", "-i", path, "-frames:v", "1", tmp], check=False)
+        path = tmp
+    try:
+        im = Image.open(path).convert("L")
+    except Exception:
+        return "#FFFFFF"
+    iw, ih = im.size
+    box = (int(iw * (args.x - 0.35)), int(ih * (args.y - 0.07)), int(iw * (args.x + 0.35)), int(ih * (args.y + 0.07)))
+    box = (max(0, box[0]), max(0, box[1]), min(iw, box[2]), min(ih, box[3]))
+    lum = ImageStat.Stat(im.crop(box)).mean[0]
+    if tmp:
+        os.unlink(tmp)
+    return "#111111" if lum > 150 else "#FFFFFF"
 
 
 # ---------- rendering ----------
@@ -215,6 +276,8 @@ def main():
     p.add_argument("--hold", type=float, default=1.3, help="seconds a resolved phrase stays")
     p.add_argument("--tick", type=float, default=1 / 24, help="seconds between glyph changes while scrambling")
     p.add_argument("--duration", type=float, help="total seconds (default: timeline, or bg video length)")
+    p.add_argument("--exit", type=float, default=0.0, help="seconds for the text to dissolve back to glyphs after the hold (0 = hard cut)")
+    p.add_argument("--order", choices=["random", "center", "ltr"], default="random", help="order in which glyphs resolve")
     p.add_argument("--loop", action="store_true", help="repeat the sequence until duration")
     p.add_argument("--seed", type=int, default=7)
     p.add_argument("--wrap", type=int, default=12, help="phrases longer than this split into 2 balanced lines (0 = never)")
@@ -222,13 +285,16 @@ def main():
     p.add_argument("--size", type=float, default=0.036, help="font size as fraction of width")
     p.add_argument("--tracking", type=float, default=0.18, help="extra letter spacing (em)")
     p.add_argument("--line-height", type=float, default=1.15)
-    p.add_argument("--color", default="#FFFFFF")
+    p.add_argument("--color", default="#FFFFFF", help="#RRGGBB, or 'auto' to pick white/dark from the --bg under the text")
     p.add_argument("--opacity", type=float, default=0.95)
     p.add_argument("--shadow", type=float, default=0.35, help="soft shadow strength 0-1 (helps legibility)")
     p.add_argument("--x", type=float, default=0.5, help="center x, 0-1")
     p.add_argument("--y", type=float, default=0.5, help="center y, 0-1")
     p.add_argument("--charset", default=CHARSET)
     p.add_argument("--svg-bg", help="solid background color for .svg output, e.g. '#1a1216' (default: transparent)")
+    p.add_argument("--preset", choices=sorted(PRESETS), default="story", help="starting point for style options; explicit flags override it")
+    pre, _ = p.parse_known_args()
+    p.set_defaults(**PRESETS[pre.preset])
     a = p.parse_args()
 
     if not shutil.which("ffmpeg"):
@@ -236,7 +302,7 @@ def main():
     if not Path(a.font).exists():
         sys.exit(f"font not found: {a.font}")
     texts = [wrap_balanced(t.replace("\\n", "\n"), a.wrap) for t in a.text]
-    o = dict(decode=a.decode, hold=a.hold, tick=a.tick, seed=a.seed, charset=a.charset)
+    o = dict(decode=a.decode, hold=a.hold, exit=a.exit, order=a.order, tick=a.tick, seed=a.seed, charset=a.charset)
     segs, total = timeline(texts, o)
 
     bg_is_video = False
@@ -252,6 +318,11 @@ def main():
         W = a.width
     W -= W % 2
     H -= H % 2
+    if a.color.lower() == "auto":
+        a.color = pick_auto_color(a.bg, bg_is_video, W, H, a) if a.bg else "#FFFFFF"
+        if a.color == "#111111":
+            a.shadow = 0.0
+        print(f"auto color: {a.color}", file=sys.stderr)
     render = make_renderer(a, W, H)
     nframes = max(1, int(round(dur * a.fps)))
     loop = a.loop

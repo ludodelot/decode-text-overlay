@@ -1,0 +1,13 @@
+{
+  "name": "@ludodelot/decode-text",
+  "version": "0.2.0",
+  "description": "<decode-text> web component: monospace text that grows from the center as random glyphs and resolves into your phrase. Zero dependencies.",
+  "main": "web/decode-text.js",
+  "files": ["web/decode-text.js", "LICENSE"],
+  "keywords": ["web-component", "text-animation", "scramble", "decode", "overlay"],
+  "license": "MIT",
+  "author": "Ludovic Delot",
+  "repository": { "type": "git", "url": "git+https://github.com/ludodelot/decode-text-overlay.git" },
+  "homepage": "https://ludodelot.github.io/decode-text-overlay/web/demo.html",
+  "scripts": { "test": "python3 -m unittest discover -s tests" }
+}

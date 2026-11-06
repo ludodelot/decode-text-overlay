@@ -1,0 +1,9 @@
+{
+  "name": "decode-text-overlay",
+  "version": "0.2.0",
+  "description": "Decoding monospace text layers for photos, videos and websites. Renders mp4, transparent mov/webm, GIF, animated SVG and PNG frames.",
+  "author": { "name": "Ludovic Delot" },
+  "homepage": "https://github.com/ludodelot/decode-text-overlay",
+  "license": "MIT",
+  "keywords": ["text", "overlay", "video", "gif", "svg", "animation"]
+}

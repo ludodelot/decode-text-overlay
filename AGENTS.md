@@ -14,6 +14,8 @@ python3 -m venv .venv && .venv/bin/pip install pillow   # ffmpeg must be install
 .venv/bin/python skills/decode-text-overlay/scripts/decode_overlay.py \
   -t "PHRASE ONE" -t "PHRASE TWO" --bg input.jpg -o output.mp4
 ```
+(If installed with pip or pipx the command is `decode-text-overlay`.)
+- Style: `--preset story|minimal|cinematic|poster|terminal|lowerthird`, `--color auto` (white or dark from the background), `--order random|center|ltr`, `--exit 0.5` (dissolve back out), `--loop`, `--width` (downscale GIFs).
 - Output by extension: `.mp4` (with `--bg`), `.mov`/`.webm` (transparent layer), `.gif`, `.svg`, or a folder for PNG frames.
 - `\n` inside a phrase forces a line break; phrases over 12 characters wrap into two balanced lines.
 - On light backgrounds use `--color "#111111" --shadow 0`.
@@ -22,4 +24,4 @@ python3 -m venv .venv && .venv/bin/pip install pillow   # ffmpeg must be install
 ## Rules
 - Always extract and look at one frame before reporting success (`ffmpeg -i out.mp4 -frames:v 1 check.png`).
 - Never invent text (dates, names) the user did not give.
-- The JS and Python animations must stay identical: change both or neither.
+- The JS and Python animations must stay identical: change both or neither. `python -m unittest discover -s tests` checks this.

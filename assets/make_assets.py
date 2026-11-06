@@ -79,7 +79,7 @@ def how_it_works():
     o = dict(decode=1.0, hold=1.0, tick=1 / 24, seed=7, charset=d.CHARSET)
     steps = [(0.06, "1", "Start at the center"), (0.20, "2", "Grow outward"), (0.38, "3", "Glyphs keep changing"),
              (0.62, "4", "Resolve in random order"), (1.00, "5", "Hold, then cut to next")]
-    phrase = "MIDNIGHT\nSESSIONS"
+    phrase = "EVEREST\n8,849 M"
     pw, gap, x0 = 210, 22, 36
     cycle = 9.0
     body = [f'<rect width="{W}" height="{H}" rx="18" fill="{BG}"/>',
@@ -120,7 +120,7 @@ def how_it_works():
 # ---------------------------------------------------------------- outputs flow
 def outputs():
     W, H = 1200, 520
-    ins = [("Phrases", '-t "MIDNIGHT SESSIONS"'), ("Photo or video", "--bg photo.jpg"), ("Style", "--size  --tracking  --color")]
+    ins = [("Phrases", '-t "EVEREST\\n8,849 M"'), ("Photo or video", "--bg photo.jpg"), ("Style", "--size  --tracking  --color")]
     outs = [("story.mp4", "text burned onto photo/video"), ("overlay.mov / .webm", "transparent layer (alpha)"),
             ("text.gif", "looping GIF"), ("text.svg", "animated SVG, no JS"), ("frames/", "PNG sequence"),
             ("<decode-text>", "web component")]
@@ -171,16 +171,16 @@ def term(x, title, accent, lines, w=560, h=330, cycle=12.0):
 
 def agents():
     W, H = 1200, 470
-    claude = [("user", 'put a decoding text "OUT NOW" over beach.jpg'),
+    claude = [("user", 'put "EVEREST 8,849 M" over ridge.jpg as a decoding text'),
               ("tool", "decode-text-overlay skill loaded"),
-              ("tool", 'decode_overlay.py -t "OUT NOW" --bg beach.jpg'),
-              ("tool", "      -o beach_text.mp4"),
-              ("ok", "132 frames, 4.4s -> beach_text.mp4")]
-    codex = [("user", "add a decode text layer saying OUT NOW to beach.jpg"),
+              ("tool", 'decode_overlay.py -t "EVEREST\\n8,849 M" --bg ridge.jpg'),
+              ("tool", "      --preset cinematic --color auto -o ridge_text.mp4"),
+              ("ok", "138 frames, 4.6s -> ridge_text.mp4")]
+    codex = [("user", "add a decode text layer with K2, 8,611 M to ridge.jpg"),
              ("tool", "reads AGENTS.md in the repo"),
-             ("tool", 'decode_overlay.py -t "OUT NOW" --bg beach.jpg'),
-             ("tool", "      -o beach_text.mp4"),
-             ("ok", "132 frames, 4.4s -> beach_text.mp4")]
+             ("tool", 'decode_overlay.py -t "K2\\n8,611 M" --bg ridge.jpg'),
+             ("tool", "      --preset cinematic --color auto -o ridge_text.mp4"),
+             ("ok", "138 frames, 4.6s -> ridge_text.mp4")]
     body = [f'<rect width="{W}" height="{H}" rx="18" fill="{BG}"/>',
             f'<text class="s" x="36" y="52" font-size="24" font-weight="700" fill="{TEXT}">Ask your agent in plain language</text>',
             f'<text class="s" x="36" y="80" font-size="15" fill="{MUTED}">Claude Code loads the skill. Codex follows AGENTS.md. Both call the same script.</text>',

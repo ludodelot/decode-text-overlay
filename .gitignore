@@ -2,3 +2,6 @@
 __pycache__/
 *.mov
 .DS_Store
+build/
+*.egg-info/
+node_modules/

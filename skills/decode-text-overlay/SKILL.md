@@ -21,12 +21,14 @@ Texto centrado, mayúsculas, monoespaciado, con tracking ancho. Crece desde el c
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install pillow     # una vez; requiere ffmpeg
-.venv/bin/python skills/decode-text-overlay/scripts/decode_overlay.py \
-  -t "MIDNIGHT SESSIONS" -t "STUDIO ONE\nLIVE SET" -t "OUT NOW" \
-  --bg foto.jpg -o story.mp4
+.venv/bin/python skills/decode-text-overlay/scripts/decode_overlay.py --preset cinematic \
+  -t "EVEREST\n8,849 M" -t "27.9881° N\n86.9250° E" --bg foto.jpg --color auto -o story.mp4
 ```
+(Si está instalado con pip/pipx, el comando es `decode-text-overlay`.)
 
-Opciones útiles: `--decode 0.9` (s por frase) · `--hold 1.3` · `--loop` · `--size 0.036` (fracción del ancho) · `--tracking 0.18` · `--x/--y 0.5` (posición) · `--color "#FFFFFF"` · `--shadow 0.35` · `--font ruta.ttf` · `--size-px 1080x1920` (sin fondo) · `--duration`.
+Presets (`--preset`): `story` (por defecto), `minimal`, `cinematic`, `poster`, `terminal`, `lowerthird`. Cualquier flag explícito gana sobre el preset.
+
+Opciones útiles: `--decode 0.9` (s por frase) · `--hold 1.3` · `--exit 0.5` (el texto se disuelve de vuelta a glifos; 0 = corte) · `--order random|center|ltr` · `--loop` · `--size 0.036` (fracción del ancho) · `--tracking 0.18` · `--x/--y 0.5` · `--color "#FFFFFF"` o `auto` (blanco/oscuro según el fondo) · `--shadow 0.35` · `--wrap 12` · `--font ruta.ttf` · `--size-px 1080x1920` (sin fondo; para 4K usa 2160x3840) · `--width` (reduce, útil en GIF) · `--duration`.
 
 ## Criterio de diseño
 

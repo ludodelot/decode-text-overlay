@@ -1,0 +1,11 @@
+{
+  "name": "decode-text-overlay",
+  "owner": { "name": "Ludovic Delot" },
+  "plugins": [
+    {
+      "name": "decode-text-overlay",
+      "source": "./",
+      "description": "Decoding monospace text layers for photos, videos and websites."
+    }
+  ]
+}
