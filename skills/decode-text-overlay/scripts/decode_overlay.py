@@ -44,6 +44,7 @@ BUNDLED_FONTS = {  # --font NAME works without a path
     "space-mono": "SpaceMono-Regular.ttf",
     "dm-mono": "DMMono-Regular.ttf",
     "dm-mono-light": "DMMono-Light.ttf",
+    "dm-sans": "DMSans-Variable.ttf",  # proportional: rendered with the slot layout; use --weight 100-1000
 }
 
 
@@ -137,6 +138,22 @@ def timeline(texts, o):
     return segs, t
 
 
+def segment_at(segs, total, t, o, loop):
+    """The (start, prev, target) segment on screen at time t, or None when the layer is empty."""
+    t -= o.get("delay", 0.0)
+    if t < 0:
+        return None
+    if loop:
+        t %= total
+    elif o.get("exit", 0.0) > 0 and t >= total:
+        return None
+    seg = segs[0]
+    for s_ in segs:
+        if t >= s_[0]:
+            seg = s_
+    return seg
+
+
 def text_at(segs, total, t, o, loop):
     ex_all = o.get("exit", 0.0)
     t -= o.get("delay", 0.0)
@@ -196,7 +213,7 @@ def pick_auto_color(bg, is_video, W, H, args):
     return "#111111" if lum > 150 else "#FFFFFF"
 
 
-def make_scrim(specs, W, H):
+def make_scrim(specs, W, H, color=(0, 0, 0)):
     """Dark gradient layer(s) between the photo and the text.
     spec = kind@opacity:extent[:center]   kind: top | bottom | full | band
       top/bottom: gradient from the edge, `extent` = fraction of the height it covers
@@ -225,7 +242,7 @@ def make_scrim(specs, W, H):
                 sys.exit(f"unknown scrim kind: {kind}")
             f = f * f * (3 - 2 * f) if kind != "full" else f  # smoothstep
             if f > 0:
-                gd.line([(0, y), (W, y)], fill=(0, 0, 0, int(255 * op * f)))
+                gd.line([(0, y), (W, y)], fill=tuple(color) + (int(255 * op * f),))
         layer = Image.alpha_composite(layer, grad)
     return layer
 
@@ -250,33 +267,64 @@ def parse_block(spec, base, parser_defaults):
 
 
 # ---------- rendering ----------
+def load_font(args, size):
+    font = ImageFont.truetype(str(resolve_font(args.font)), size)
+    try:
+        axes = font.get_variation_axes()
+    except Exception:
+        axes = []
+    if axes:
+        vals = []
+        for ax in axes:
+            name = ax["name"].decode() if isinstance(ax["name"], bytes) else ax["name"]
+            v = ax["default"]
+            if "weight" in name.lower() and args.weight:
+                v = args.weight
+            elif "optical" in name.lower():
+                v = min(ax["maximum"], max(ax["minimum"], size / 2))
+            vals.append(max(ax["minimum"], min(ax["maximum"], v)))
+        font.set_variation_by_axes(vals)
+    return font
+
+
 def make_renderer(args, W, H):
     size = max(8, int(W * args.size))
-    font = ImageFont.truetype(str(resolve_font(args.font)), size)
-    adv = font.getlength("M") + args.tracking * size
+    font = load_font(args, size)
+    track = args.tracking * size
+    mono = abs(font.getlength("i") - font.getlength("M")) < 0.5
+    slot = args.layout == "slot" or (args.layout == "auto" and not mono)
     line_h = int(size * args.line_height)
     cx = W * args.x
     cy = H * args.y
     color = tuple(int(args.color.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
 
-    def render(text):
+    def advances(target_line, shown_line):
+        """Per-character slot width. Monospace: one fixed cell. Slot layout (proportional fonts):
+        each slot is as wide as the final character, so the line never jitters while glyphs scramble."""
+        if not slot:
+            return [font.getlength("M") + track] * len(shown_line)
+        return [font.getlength(ch) + track for ch in target_line.ljust(len(shown_line))[:len(shown_line)]]
+
+    def render(text, target=None):
         img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         lines = text.split("\n")
+        tlines = (target or text).split("\n")
         block_h = line_h * len(lines)
         shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0)) if args.shadow > 0 else None
         d = ImageDraw.Draw(img)
         sd = ImageDraw.Draw(shadow) if shadow else None
         for li, ln in enumerate(lines):
-            w = adv * len(ln) - args.tracking * size
-            x0 = cx - w / 2
+            adv = advances(tlines[li] if li < len(tlines) else ln, ln)
+            w = sum(adv) - track
+            x = cx - w / 2
             y = cy - block_h / 2 + li * line_h
             for ci, ch in enumerate(ln):
-                if ch == " ":
-                    continue
-                x = x0 + ci * adv
-                if sd:
-                    sd.text((x, y), ch, font=font, fill=(0, 0, 0, int(255 * args.shadow)))
-                d.text((x, y), ch, font=font, fill=color + (int(255 * args.opacity),))
+                if ch != " ":
+                    gx = x + (adv[ci] - track - font.getlength(ch)) / 2 if slot else x
+                    if sd:
+                        sd.text((gx, y), ch, font=font, fill=(0, 0, 0, int(255 * args.shadow)))
+                    d.text((gx, y), ch, font=font, fill=color + (int(255 * args.opacity),))
+                x += adv[ci]
         if shadow:
             shadow = shadow.filter(ImageFilter.GaussianBlur(size * 0.12))
             img = Image.alpha_composite(shadow, img)
@@ -362,6 +410,10 @@ def main():
     p.add_argument("--size", type=float, default=0.036, help="font size as fraction of width")
     p.add_argument("--tracking", type=float, default=0.18, help="extra letter spacing (em)")
     p.add_argument("--line-height", type=float, default=1.15)
+    p.add_argument("--weight", type=int, default=0, help="weight 100-1000 for variable fonts such as dm-sans")
+    p.add_argument("--layout", choices=["auto", "mono", "slot"], default="auto",
+                   help="slot = per-character slots sized to the final letters (proportional fonts); auto picks it for non-monospace fonts")
+    p.add_argument("--scrim-color", default="#000000", help="color of the --scrim gradients, e.g. '#070A10'")
     p.add_argument("--color", default="#FFFFFF", help="#RRGGBB, or 'auto' to pick white/dark from the --bg under the text")
     p.add_argument("--opacity", type=float, default=0.95)
     p.add_argument("--shadow", type=float, default=0.35, help="soft shadow strength 0-1 (helps legibility)")
@@ -414,7 +466,7 @@ def main():
                 b.shadow = 0.0
             print(f"auto color: {b.color}", file=sys.stderr)
         l["render"] = make_renderer(b, W, H)
-    scrim = make_scrim(a.scrim, W, H) if a.scrim else None
+    scrim = make_scrim(a.scrim, W, H, tuple(int(a.scrim_color.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))) if a.scrim else None
     nframes = max(1, int(round(dur * a.fps)))
     loop = a.loop
 
@@ -439,7 +491,8 @@ def main():
                         if tk not in texts_cache:
                             if len(texts_cache) > 600:
                                 texts_cache.clear()
-                            texts_cache[tk] = l["render"](txt)
+                            seg = segment_at(l["segs"], l["total"] - l["args"].delay, f / a.fps, l["o"], l["args"].loop)
+                            texts_cache[tk] = l["render"](txt, seg[2] if seg else txt)
                         img = Image.alpha_composite(img, texts_cache[tk])
                 cache[key] = img
             yield f, cache[key]

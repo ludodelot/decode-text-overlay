@@ -1,6 +1,8 @@
 # Changelog
 
 ## 0.3.0
+- Proportional fonts: `--layout slot` (auto for non-monospace fonts) gives every character a slot sized to its final letter, so lines do not jitter while glyphs scramble. Bundled DM Sans (variable): `--font dm-sans --weight 800`.
+- `--scrim-color` for tinted gradients (e.g. `#070A10`).
 - Bundled DM Mono (Regular and Light, SIL OFL): `--font dm-mono` / `dm-mono-light` / `space-mono`, also per block (`font=dm-mono-light`).
 - `--block "TEXT;y=0.2;size=0.07;delay=0.5;preset=cinematic"` (repeatable): stack several texts in one render, each with its own position, style and timing.
 - `--scrim top|bottom|band|full@opacity:extent`: dark gradients between the photo and the text, for legible overlays on busy photos.

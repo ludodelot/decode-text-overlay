@@ -30,6 +30,8 @@ Presets (`--preset`): `story` (por defecto), `minimal`, `cinematic`, `poster`, `
 
 Varios textos en un render (historias): `--block "TEXTO;y=0.2;size=0.07;delay=0.5;order=ltr"` repetible (cada bloque admite cualquier flag sin guiones) y `--scrim "top@0.9:0.42"` / `bottom` / `band` / `full` para oscurecer zonas de la foto bajo el texto. Para Instagram Stories: 1080x1920, texto entre el 13 % y el 87 % de la altura, CTA nunca pegado abajo.
 
+Tipografía: por defecto monoespaciada (Space Mono). `--font dm-mono|dm-mono-light|space-mono|dm-sans` o una ruta .ttf; con fuentes no monoespaciadas se activa `--layout slot` (cada letra ocupa el hueco de su letra final) y `--weight` (100-1000) en fuentes variables. `--scrim-color "#070A10"` tiñe los degradados. Si el usuario tiene web o marca, pídele o mira sus fuentes y colores antes de elegir tipografía.
+
 Opciones útiles: `--decode 0.9` (s por frase) · `--hold 1.3` · `--exit 0.5` (el texto se disuelve de vuelta a glifos; 0 = corte) · `--order random|center|ltr` · `--loop` · `--size 0.036` (fracción del ancho) · `--tracking 0.18` · `--x/--y 0.5` · `--color "#FFFFFF"` o `auto` (blanco/oscuro según el fondo) · `--shadow 0.35` · `--wrap 12` · `--font ruta.ttf` · `--size-px 1080x1920` (sin fondo; para 4K usa 2160x3840) · `--width` (reduce, útil en GIF) · `--duration`.
 
 ## Criterio de diseño
