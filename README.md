@@ -108,6 +108,19 @@ decode-text-overlay --preset cinematic \
 
 Each `-t` is one phrase, shown in order. Phrases over 12 characters split into two balanced lines (`--wrap 0` disables it); `\n` chooses the break yourself.
 
+**Stories with several texts.** `--block` stacks texts in one render, each with its own position and timing, and `--scrim` darkens the parts of the photo where text sits:
+
+```bash
+decode-text-overlay --bg ridge.jpg --size-px 1080x1920 --duration 9 \
+  --scrim "top@0.9:0.42" --scrim "bottom@0.95:0.5" --decode 1.1 --hold 30 --wrap 0 \
+  --block "EVEREST;y=0.19;size=0.078;tracking=0.26;delay=0.3" \
+  --block "8,849 M · 27.9881° N 86.9250° E;y=0.24;size=0.03;delay=1.1;order=ltr" \
+  --block "NEPAL\nCHINA;y=0.8;size=0.04;delay=2;order=ltr" \
+  -o story.mp4
+```
+
+Block options are any CLI flag without the dashes (`y`, `size`, `tracking`, `delay`, `order`, `preset`, `color`...). Keep story text between 13% and 87% of the height, where Instagram's interface does not cover it.
+
 **Presets** set a coherent style; any flag you add overrides them.
 
 | Preset | Feel | Key settings |

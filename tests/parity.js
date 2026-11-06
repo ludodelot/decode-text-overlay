@@ -4,7 +4,7 @@ require("../web/decode-text.js");
 const D = window.DecodeText;
 const scenarios = JSON.parse(process.argv[2]);
 const out = scenarios.map((sc) => {
-  const o = { decode: sc.decode, hold: sc.hold, exit: sc.exit, order: sc.order, tick: 1 / 24, seed: sc.seed, charset: D.CHARSET };
+  const o = { decode: sc.decode, hold: sc.hold, exit: sc.exit, delay: sc.delay || 0, order: sc.order, tick: 1 / 24, seed: sc.seed, charset: D.CHARSET };
   const texts = sc.texts.map((t) => D.wrapBalanced(t, 12));
   return sc.times.map((t) => D.textAt(texts, t, o, sc.loop).text);
 });

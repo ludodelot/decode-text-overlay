@@ -15,6 +15,7 @@ python3 -m venv .venv && .venv/bin/pip install pillow   # ffmpeg must be install
   -t "PHRASE ONE" -t "PHRASE TWO" --bg input.jpg -o output.mp4
 ```
 (If installed with pip or pipx the command is `decode-text-overlay`.)
+- Several texts in one render: repeat `--block "TEXT;y=0.2;size=0.07;delay=0.5;order=ltr"` (any flag works as `key=value`); darken photo areas with `--scrim "top@0.9:0.42"` / `bottom` / `band` / `full`. For Instagram stories keep text between 13% and 87% of the height.
 - Style: `--preset story|minimal|cinematic|poster|terminal|lowerthird`, `--color auto` (white or dark from the background), `--order random|center|ltr`, `--exit 0.5` (dissolve back out), `--loop`, `--width` (downscale GIFs).
 - Output by extension: `.mp4` (with `--bg`), `.mov`/`.webm` (transparent layer), `.gif`, `.svg`, or a folder for PNG frames.
 - `\n` inside a phrase forces a line break; phrases over 12 characters wrap into two balanced lines.

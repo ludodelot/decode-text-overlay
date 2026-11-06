@@ -23,12 +23,14 @@ SCENARIOS = [
          times=[0.1, 0.5, 1.0, 2.2, 2.4, 2.7, 3.0, 4.0, 5.5]),
     dict(texts=["THE QUICK BROWN FOX JUMPS"], decode=1.4, hold=1.8, exit=0.8, order="center", seed=99, loop=False,
          times=[0.0, 0.3, 0.9, 1.5, 3.3, 3.8, 4.0, 5.0]),
+    dict(texts=["OPEN AGENDA", "JAN - JUN 2027"], decode=0.9, hold=1.0, exit=0.0, order="random", seed=5, loop=False,
+         delay=0.6, times=[0.0, 0.5, 0.7, 1.0, 1.4, 2.5, 3.9, 6.0]),
 ]
 
 
 def opts(sc):
-    return dict(decode=sc["decode"], hold=sc["hold"], exit=sc["exit"], order=sc["order"], tick=1 / 24,
-                seed=sc["seed"], charset=d.CHARSET)
+    return dict(decode=sc["decode"], hold=sc["hold"], exit=sc["exit"], delay=sc.get("delay", 0.0), order=sc["order"],
+                tick=1 / 24, seed=sc["seed"], charset=d.CHARSET)
 
 
 class Core(unittest.TestCase):
@@ -104,6 +106,21 @@ class Outputs(unittest.TestCase):
                                capture_output=True, text=True, check=True)
             self.assertIn("#111111", r.stderr)
             self.assertGreater((t / "o.mp4").stat().st_size, 500)
+
+    def test_blocks_scrim_delay(self):
+        with tempfile.TemporaryDirectory() as t:
+            t = Path(t)
+            bg = t / "bg.png"
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=0x88aacc:s=270x480", "-frames:v", "1", str(bg)], check=True)
+            subprocess.run([sys.executable, str(SCRIPT), "--bg", str(bg), "--fps", "8", "--duration", "3",
+                            "--scrim", "top@0.7:0.4", "--scrim", "bottom@0.7:0.4",
+                            "--block", "OPEN AGENDA;y=0.2;size=0.07", "--block", "SECOND BLOCK;y=0.8;delay=0.5",
+                            "-o", str(t / "o.mp4")], check=True, capture_output=True)
+            self.assertGreater((t / "o.mp4").stat().st_size, 500)
+            frames = t / "f"
+            subprocess.run([sys.executable, str(SCRIPT), "-t", "X", "--delay", "1", "--size-px", "270x480", "--fps", "4", "--duration", "1", "-o", str(frames)], check=True, capture_output=True)
+            from PIL import Image
+            self.assertEqual(Image.open(frames / "frame_00000.png").getbbox(), None)  # nothing before the delay
 
     def test_presets_run(self):
         with tempfile.TemporaryDirectory() as t:

@@ -122,6 +122,9 @@ def timeline(texts, o):
 
 def text_at(segs, total, t, o, loop):
     ex_all = o.get("exit", 0.0)
+    t -= o.get("delay", 0.0)
+    if t < 0:
+        return ""
     if loop:
         t = t % total
     elif ex_all > 0 and t >= total:
@@ -174,6 +177,59 @@ def pick_auto_color(bg, is_video, W, H, args):
     if tmp:
         os.unlink(tmp)
     return "#111111" if lum > 150 else "#FFFFFF"
+
+
+def make_scrim(specs, W, H):
+    """Dark gradient layer(s) between the photo and the text.
+    spec = kind@opacity:extent[:center]   kind: top | bottom | full | band
+      top/bottom: gradient from the edge, `extent` = fraction of the height it covers
+      band: soft horizontal band, `extent` = band height, `center` = its y (default 0.5)
+      full: flat veil over everything. Examples: top@0.7:0.4  bottom@0.75:0.45  band@0.6:0.2:0.5  full@0.25"""
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    for spec in specs:
+        kind, _, rest = spec.partition("@")
+        nums = [float(v) for v in rest.split(":")] if rest else []
+        op = nums[0] if nums else 0.5
+        ext = nums[1] if len(nums) > 1 else 0.4
+        cen = nums[2] if len(nums) > 2 else 0.5
+        grad = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        gd = ImageDraw.Draw(grad)
+        for y in range(H):
+            v = y / H
+            if kind == "top":
+                f = max(0.0, 1 - v / ext)
+            elif kind == "bottom":
+                f = max(0.0, 1 - (1 - v) / ext)
+            elif kind == "band":
+                f = max(0.0, 1 - abs(v - cen) / (ext / 2))
+            elif kind == "full":
+                f = 1.0
+            else:
+                sys.exit(f"unknown scrim kind: {kind}")
+            f = f * f * (3 - 2 * f) if kind != "full" else f  # smoothstep
+            if f > 0:
+                gd.line([(0, y), (W, y)], fill=(0, 0, 0, int(255 * op * f)))
+        layer = Image.alpha_composite(layer, grad)
+    return layer
+
+
+def parse_block(spec, base, parser_defaults):
+    """'TEXT1|TEXT2;y=0.2;size=0.07;delay=0.5;preset=cinematic' -> namespace based on `base`."""
+    import copy
+    parts = spec.split(";")
+    ns = copy.copy(base)
+    ns.text = parts[0].split("|")
+    kv = dict(x.split("=", 1) for x in parts[1:] if "=" in x)
+    if "preset" in kv:
+        for k, v in PRESETS[kv.pop("preset")].items():
+            setattr(ns, k, v)
+    for k, v in kv.items():
+        k = k.strip().replace("-", "_")
+        if not hasattr(ns, k):
+            sys.exit(f"unknown block option: {k}")
+        cur = getattr(ns, k)
+        setattr(ns, k, type(cur)(v) if isinstance(cur, (int, float)) and not isinstance(cur, bool) else v)
+    return ns
 
 
 # ---------- rendering ----------
@@ -265,7 +321,11 @@ def probe(path):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("-t", "--text", action="append", required=True, help="phrase (repeat for a sequence; \\n = new line)")
+    p.add_argument("-t", "--text", action="append", help="phrase (repeat for a sequence; \\n = new line)")
+    p.add_argument("--block", action="append", help="extra text block: 'A|B;y=0.2;size=0.07;delay=0.5;preset=cinematic' (repeat; "
+                   "options are any flag below; lets one run stack several texts with their own position, style and timing)")
+    p.add_argument("--scrim", action="append", help="dark gradient behind the text: kind@opacity:extent[:center], kind = top|bottom|full|band (repeat)")
+    p.add_argument("--delay", type=float, default=0.0, help="seconds before this text starts")
     p.add_argument("-o", "--out", required=True,
                    help=".mp4 (opaque or composited) | .mov (ProRes 4444 alpha) | .webm (VP9 alpha) | .gif | folder/ (PNG sequence)")
     p.add_argument("--bg", help="photo or video to composite onto (output becomes opaque mp4)")
@@ -301,9 +361,19 @@ def main():
         sys.exit("ffmpeg not found")
     if not Path(a.font).exists():
         sys.exit(f"font not found: {a.font}")
-    texts = [wrap_balanced(t.replace("\\n", "\n"), a.wrap) for t in a.text]
-    o = dict(decode=a.decode, hold=a.hold, exit=a.exit, order=a.order, tick=a.tick, seed=a.seed, charset=a.charset)
-    segs, total = timeline(texts, o)
+    if not a.text and not a.block:
+        sys.exit("give at least one -t/--text or --block")
+    blocks = [parse_block(b, a, None) for b in a.block] if a.block else []
+    if a.text:
+        blocks.insert(0, a)
+    layers = []
+    for b in blocks:
+        texts = [wrap_balanced(t.replace("\\n", "\n"), b.wrap) for t in b.text]
+        o = dict(decode=b.decode, hold=b.hold, exit=b.exit, order=b.order, tick=b.tick, seed=b.seed,
+                 charset=b.charset, delay=b.delay)
+        segs, total = timeline(texts, o)
+        layers.append(dict(args=b, o=o, segs=segs, total=total + b.delay, texts=texts))
+    total = max(l["total"] for l in layers)
 
     bg_is_video = False
     if a.bg:
@@ -318,28 +388,43 @@ def main():
         W = a.width
     W -= W % 2
     H -= H % 2
-    if a.color.lower() == "auto":
-        a.color = pick_auto_color(a.bg, bg_is_video, W, H, a) if a.bg else "#FFFFFF"
-        if a.color == "#111111":
-            a.shadow = 0.0
-        print(f"auto color: {a.color}", file=sys.stderr)
-    render = make_renderer(a, W, H)
+    for l in layers:
+        b = l["args"]
+        if b.color.lower() == "auto":
+            b.color = pick_auto_color(a.bg, bg_is_video, W, H, b) if a.bg else "#FFFFFF"
+            if b.color == "#111111":
+                b.shadow = 0.0
+            print(f"auto color: {b.color}", file=sys.stderr)
+        l["render"] = make_renderer(b, W, H)
+    scrim = make_scrim(a.scrim, W, H) if a.scrim else None
     nframes = max(1, int(round(dur * a.fps)))
     loop = a.loop
 
     out = Path(a.out)
     ext = out.suffix.lower()
     is_seq = ext == ""
-    cache = {}
+    cache, texts_cache = {}, {}
+
+    def layer_texts(f):
+        return tuple(text_at(l["segs"], l["total"] - l["args"].delay, f / a.fps, l["o"], l["args"].loop) for l in layers)
 
     def frames():
         for f in range(nframes):
-            txt = text_at(segs, total, f / a.fps, o, loop)
-            if txt not in cache:
-                if len(cache) > 400:
+            key = layer_texts(f)
+            if key not in cache:
+                if len(cache) > 300:
                     cache.clear()
-                cache[txt] = render(txt)
-            yield f, cache[txt]
+                img = scrim.copy() if scrim else Image.new("RGBA", (W, H), (0, 0, 0, 0))
+                for i, (l, txt) in enumerate(zip(layers, key)):
+                    if txt:
+                        tk = (i, txt)
+                        if tk not in texts_cache:
+                            if len(texts_cache) > 600:
+                                texts_cache.clear()
+                            texts_cache[tk] = l["render"](txt)
+                        img = Image.alpha_composite(img, texts_cache[tk])
+                cache[key] = img
+            yield f, cache[key]
 
     if is_seq:
         out.mkdir(parents=True, exist_ok=True)
@@ -349,7 +434,10 @@ def main():
         return
 
     if ext == ".svg":
-        write_svg(out, a, W, H, nframes, frames_text=[text_at(segs, total, f / a.fps, o, loop) for f in range(nframes)])
+        if len(layers) > 1 or scrim:
+            sys.exit(".svg output supports a single text block and no --scrim")
+        l = layers[0]
+        write_svg(out, a, W, H, nframes, frames_text=[text_at(l["segs"], l["total"] - a.delay, f / a.fps, l["o"], a.loop) for f in range(nframes)])
         return
 
     cmd = ["ffmpeg", "-v", "error", "-y"]

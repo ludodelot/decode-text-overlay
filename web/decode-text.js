@@ -66,6 +66,8 @@
   // Pure timeline: which text is on screen t seconds after start. Mirrors text_at() in decode_overlay.py.
   function textAt(texts, t, o, loop) {
     const live = o.decode + o.hold, cycle = live + o.exit, total = cycle * texts.length;
+    t -= o.delay || 0;
+    if (t < 0) return { text: "", ended: false };
     if (loop) t %= total;
     else if (o.exit > 0 ? t >= total : t >= total - o.hold) {
       return { text: o.exit > 0 ? "" : texts[texts.length - 1], ended: true };
@@ -78,7 +80,7 @@
   }
 
   class DecodeText extends HTMLElement {
-    static get observedAttributes() { return ["texts", "decode", "hold", "exit", "order", "tick", "seed", "wrap", "loop", "paused"]; }
+    static get observedAttributes() { return ["texts", "decode", "hold", "exit", "delay", "order", "tick", "seed", "wrap", "loop", "paused"]; }
     constructor() {
       super();
       const r = this.attachShadow({ mode: "open" });
@@ -95,7 +97,7 @@
     }
     get _o() {
       const n = (k, d) => (this.hasAttribute(k) ? parseFloat(this.getAttribute(k)) : d);
-      return { decode: n("decode", 0.9), hold: n("hold", 1.3), exit: n("exit", 0), order: this.getAttribute("order") || "random", tick: n("tick", 1 / 24), seed: n("seed", 7), charset: CHARSET };
+      return { decode: n("decode", 0.9), hold: n("hold", 1.3), exit: n("exit", 0), delay: n("delay", 0), order: this.getAttribute("order") || "random", tick: n("tick", 1 / 24), seed: n("seed", 7), charset: CHARSET };
     }
     get _texts() {
       return (this.getAttribute("texts") || this.textContent || "").split("|").map((s) => wrapBalanced(s.replace(/\\n/g, "\n").trim(), this.hasAttribute("wrap") ? parseInt(this.getAttribute("wrap"), 10) : 12)).filter(Boolean);

@@ -1,6 +1,6 @@
 {
   "name": "@ludodelot/decode-text",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "<decode-text> web component: monospace text that grows from the center as random glyphs and resolves into your phrase. Zero dependencies.",
   "main": "web/decode-text.js",
   "files": ["web/decode-text.js", "LICENSE"],

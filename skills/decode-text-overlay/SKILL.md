@@ -28,6 +28,8 @@ python3 -m venv .venv && .venv/bin/pip install pillow     # una vez; requiere ff
 
 Presets (`--preset`): `story` (por defecto), `minimal`, `cinematic`, `poster`, `terminal`, `lowerthird`. Cualquier flag explícito gana sobre el preset.
 
+Varios textos en un render (historias): `--block "TEXTO;y=0.2;size=0.07;delay=0.5;order=ltr"` repetible (cada bloque admite cualquier flag sin guiones) y `--scrim "top@0.9:0.42"` / `bottom` / `band` / `full` para oscurecer zonas de la foto bajo el texto. Para Instagram Stories: 1080x1920, texto entre el 13 % y el 87 % de la altura, CTA nunca pegado abajo.
+
 Opciones útiles: `--decode 0.9` (s por frase) · `--hold 1.3` · `--exit 0.5` (el texto se disuelve de vuelta a glifos; 0 = corte) · `--order random|center|ltr` · `--loop` · `--size 0.036` (fracción del ancho) · `--tracking 0.18` · `--x/--y 0.5` · `--color "#FFFFFF"` o `auto` (blanco/oscuro según el fondo) · `--shadow 0.35` · `--wrap 12` · `--font ruta.ttf` · `--size-px 1080x1920` (sin fondo; para 4K usa 2160x3840) · `--width` (reduce, útil en GIF) · `--duration`.
 
 ## Criterio de diseño
