@@ -140,7 +140,7 @@ Block options are any CLI flag without the dashes (`y`, `size`, `tracking`, `del
 | `--size`, `--tracking` | 0.036, 0.18 | font size (fraction of width), letter spacing (em) |
 | `--x`, `--y` | 0.5, 0.5 | text center, 0 to 1 |
 | `--color`, `--shadow`, `--opacity` | white, 0.35, 0.95 | `--color auto` picks white or dark from the `--bg` under the text |
-| `--font` | Space Mono | any monospace `.ttf` |
+| `--font` | Space Mono | `dm-mono`, `dm-mono-light`, `space-mono`, or any monospace `.ttf` |
 | `--width`, `--fps`, `--seed` | none, 30, 7 | downscale (GIFs), frame rate, same seed = same animation |
 
 `--help` lists everything. Regenerate the examples with `examples/make_examples.sh` and the graphics with `assets/make_assets.py`.
@@ -173,4 +173,4 @@ CI runs the same on Python 3.10 and 3.12. Changes to the animation must be made 
 
 ## License
 
-MIT. Bundled font: Space Mono (SIL OFL 1.1, see `skills/decode-text-overlay/fonts/OFL.txt`).
+MIT. Bundled fonts: Space Mono and DM Mono (SIL OFL 1.1, licenses in `skills/decode-text-overlay/fonts/`).

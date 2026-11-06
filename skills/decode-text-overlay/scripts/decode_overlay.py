@@ -40,6 +40,23 @@ FONT_CANDIDATES = [
     Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"),
     Path("C:/Windows/Fonts/consola.ttf"),
 ]
+BUNDLED_FONTS = {  # --font NAME works without a path
+    "space-mono": "SpaceMono-Regular.ttf",
+    "dm-mono": "DMMono-Regular.ttf",
+    "dm-mono-light": "DMMono-Light.ttf",
+}
+
+
+def resolve_font(value):
+    """Bundled font alias, or a path to any monospace .ttf/.otf."""
+    key = str(value).lower()
+    if key in BUNDLED_FONTS:
+        for base in (SKILL_DIR / "fonts", Path(sys.prefix) / "share" / "decode-text-overlay" / "fonts"):
+            if (base / BUNDLED_FONTS[key]).exists():
+                return base / BUNDLED_FONTS[key]
+    return Path(value)
+
+
 DEFAULT_FONT = next((f for f in FONT_CANDIDATES if f.exists()), FONT_CANDIDATES[0])
 
 
@@ -235,7 +252,7 @@ def parse_block(spec, base, parser_defaults):
 # ---------- rendering ----------
 def make_renderer(args, W, H):
     size = max(8, int(W * args.size))
-    font = ImageFont.truetype(str(args.font), size)
+    font = ImageFont.truetype(str(resolve_font(args.font)), size)
     adv = font.getlength("M") + args.tracking * size
     line_h = int(size * args.line_height)
     cx = W * args.x
@@ -341,7 +358,7 @@ def main():
     p.add_argument("--loop", action="store_true", help="repeat the sequence until duration")
     p.add_argument("--seed", type=int, default=7)
     p.add_argument("--wrap", type=int, default=12, help="phrases longer than this split into 2 balanced lines (0 = never)")
-    p.add_argument("--font", type=Path, default=DEFAULT_FONT)
+    p.add_argument("--font", default=str(DEFAULT_FONT), help="bundled name (space-mono, dm-mono, dm-mono-light) or path to a monospace .ttf")
     p.add_argument("--size", type=float, default=0.036, help="font size as fraction of width")
     p.add_argument("--tracking", type=float, default=0.18, help="extra letter spacing (em)")
     p.add_argument("--line-height", type=float, default=1.15)
@@ -359,8 +376,9 @@ def main():
 
     if not shutil.which("ffmpeg"):
         sys.exit("ffmpeg not found")
-    if not Path(a.font).exists():
-        sys.exit(f"font not found: {a.font}")
+    for fv in [a.font] + [getattr(b, "font", a.font) for b in (parse_block(x, a, None) for x in (a.block or []))]:
+        if not resolve_font(fv).exists():
+            sys.exit(f"font not found: {fv} (bundled: {', '.join(BUNDLED_FONTS)})")
     if not a.text and not a.block:
         sys.exit("give at least one -t/--text or --block")
     blocks = [parse_block(b, a, None) for b in a.block] if a.block else []

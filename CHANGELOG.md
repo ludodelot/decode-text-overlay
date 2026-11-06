@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.3.0
+- Bundled DM Mono (Regular and Light, SIL OFL): `--font dm-mono` / `dm-mono-light` / `space-mono`, also per block (`font=dm-mono-light`).
 - `--block "TEXT;y=0.2;size=0.07;delay=0.5;preset=cinematic"` (repeatable): stack several texts in one render, each with its own position, style and timing.
 - `--scrim top|bottom|band|full@opacity:extent`: dark gradients between the photo and the text, for legible overlays on busy photos.
 - `--delay` (and a `delay` attribute on `<decode-text>`), covered by the JS/Python parity test.
